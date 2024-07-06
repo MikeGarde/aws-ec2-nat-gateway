@@ -5,5 +5,71 @@ tasks:
     desc: Show the available tasks
     cmds:
       - task --list --sort alphanumeric
-  
-  packer-build:    desc: Build AMI with Packer    cmds:      - |        cd ami        AWS_REGION=$(aws configure get region)        VPC_ID=$(aws ec2 describe-vpcs --query 'Vpcs[0].VpcId' --output text --region $AWS_REGION)        SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=public-*" --query 'Subnets[0].SubnetId' --output text --region $AWS_REGION)        packer build \          -var "aws_region=$AWS_REGION" \          -var "vpc_id=$VPC_ID" \          -var "subnet_id=$SUBNET_ID" \          {{.PACKER_DEBUG}} \          nat-gateway.pkr.hcl  packer-build:debug:    desc: Build AMI with Packer (Debug Mode)    vars:      PACKER_DEBUG: "--debug"    deps:      - packer-build      
+
+  init:
+    desc: Initiate packer and terraform
+    cmds:
+      - |
+        cd ami
+        packer init
+        cd ../terraform/scratch
+        terraform init
+
+  check-dotenv:
+    internal: true
+    cmd: dotenv -v || echo "Please install dotenv\nnpm i -g @mikegarde/dotenv-cli"
+
+  dotenv-setup:
+    desc: Get information about me for SSH permissions
+    dir: terraform/scratch
+    deps: [check-dotenv]
+    silent: true
+    cmds:
+      - |
+        cp .tfvars.example .tfvars
+        
+        AWS_REGION=$(aws configure get region)
+        dotenv region -s $AWS_REGION --file .tfvars --quote
+        aws configure get profile-name || echo "root" | dotenv sg_ssh_admin_name --file .tfvars --quote
+        curl -s -4 icanhazip.com | dotenv sg_ssh_admin_ipv4 --file .tfvars --quote
+        aws ec2 describe-key-pairs --query 'sort_by(KeyPairs, &CreateTime)[-1].KeyName' \
+          | dotenv nat_key_name --file .tfvars --quote
+        
+        curl -s https://ip-ranges.amazonaws.com/ip-ranges.json -o ip-ranges.json
+        
+        IP=$(jq -r ".prefixes[] | select(.region == \"$AWS_REGION\" and .service == \"EC2_INSTANCE_CONNECT\") \
+          | .ip_prefix" ip-ranges.json)
+        IPLIST="[\"$IP\"]"
+        echo $IPLIST | dotenv sg_ssh_ec2_connect_ips --file .tfvars
+        rm -f ip-ranges.json
+
+  packer-build:
+    desc: Build AMI with Packer
+    dir: ./ami
+    cmds:
+      - |
+        AWS_REGION=$(aws configure get region)
+        VPC_ID=$(aws ec2 describe-vpcs --query 'Vpcs[0].VpcId' --output text --region $AWS_REGION)
+        SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=public-*" --query 'Subnets[0].SubnetId' --output text --region $AWS_REGION)
+        packer build \
+          -var "aws_region=$AWS_REGION" \
+          -var "vpc_id=$VPC_ID" \
+          -var "subnet_id=$SUBNET_ID" \
+          {{.PACKER_DEBUG}} \
+          nat-gateway.pkr.hcl
+  packer-build:debug:
+    desc: Build AMI with Packer (Debug Mode)
+    vars:
+      PACKER_DEBUG: "--debug"
+    deps:
+      - packer-build
+
+  terraform:*:
+    desc: Run Terraform Action
+    silent: false
+    vars:
+      ACTION: '{{index .MATCH 0}}'
+    dir: terraform/scratch
+    cmds:
+      - terraform {{.ACTION}} -var-file=".tfvars"
+
