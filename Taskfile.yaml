@@ -65,7 +65,7 @@ tasks:
       - packer-build
 
   terraform:*:
-    desc: Run Terraform Action
+    desc: Run Terraform Action [plan | apply | destroy]
     silent: false
     vars:
       ACTION: '{{index .MATCH 0}}'
