@@ -1,0 +1,10 @@
+module ssh_module 1.0;
+
+require {
+    type sshd_t;
+    type var_lib_t;
+    class file { getattr open read };
+}
+
+#============= sshd_t ==============
+allow sshd_t var_lib_t:file { getattr open read };

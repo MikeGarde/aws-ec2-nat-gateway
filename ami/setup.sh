@@ -17,3 +17,11 @@ sudo sysctl -p /etc/sysctl.d/custom-ip-forwarding.conf
 sudo /sbin/iptables -t nat -A POSTROUTING -o ens5 -j MASQUERADE
 sudo /sbin/iptables -F FORWARD
 sudo service iptables save
+
+# Enable SELinux
+#sudo yum -y install selinux-policy-minimum selinux-policy-mls policycoreutils setools
+checkmodule -M -m -o /tmp/ssh_module.mod /tmp/ssh_module.te
+semodule_package -o /tmp/ssh_module.pp -m /tmp/ssh_module.mod
+sudo semodule -i /tmp/ssh_module.pp
+rm /tmp/ssh_*
+sudo sed 's/^SELINUX=.*$/SELINUX=enforcing/' /etc/selinux/config | sudo tee /etc/selinux/config

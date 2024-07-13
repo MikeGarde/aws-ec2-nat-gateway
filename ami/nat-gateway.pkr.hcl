@@ -94,6 +94,12 @@ build {
     "source.amazon-ebs.arm64",
   ]
 
+  # Transfer SELinux module to the machine
+  provisioner "file" {
+    source      = "./ssh_module.te"
+    destination = "/tmp/ssh_module.te"
+  }
+
   # Setup Instance to be a NAT Gateway
   provisioner "shell" {
     script = "./setup.sh"
