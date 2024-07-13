@@ -126,3 +126,8 @@ variable "sg_ssh_admin_ipv4" {
   description = "IP to allow SSH access"
   default     = "172.16.1.0"
 }
+variable "enable_ec2_connect" {
+  description = "Enable EC2 Connect"
+  type        = bool
+  default     = true
+}
