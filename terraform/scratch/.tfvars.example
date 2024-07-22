@@ -4,3 +4,4 @@ sg_ssh_admin_ipv4=
 nat_key_name=
 sg_ssh_ec2_connect_ips=["18.206.107.24/29"]
 nat_gateway_arch="arm64"
+retain_log_bucket=true

@@ -81,11 +81,12 @@ Whichever option you choose you'll need to have already created your EC2 NAT Gat
 Check out the manual section below to see what this is doing.
 
 ```shell
-# Automatically setup your .tfvars file
+# Automatically setup your .tfvars file (but still review it before proceeding)
 task dotenv-setup
 # Run terraform actions
 task terraform:plan
 task terraform:apply
+task terraform:destroy
 ```
 
 #### Manual
