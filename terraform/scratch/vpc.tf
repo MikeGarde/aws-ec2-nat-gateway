@@ -109,6 +109,17 @@ resource "aws_route_table_association" "private_rt_association" {
   route_table_id = aws_route_table.private_rt.id
 }
 
+resource "aws_flow_log" "logs" {
+  vpc_id               = aws_vpc.main.id
+  log_destination      = "${aws_s3_bucket.logs.arn}/flow-logs/"
+  log_destination_type = "s3"
+  traffic_type         = "ALL"
+  destination_options {
+    file_format        = "parquet"
+    per_hour_partition = true
+  }
+}
+
 # Test EC2 Instance
 #resource "aws_instance" "test_instance" {
 #  ami             = "ami-08a0d1e16fc3f61ea"
