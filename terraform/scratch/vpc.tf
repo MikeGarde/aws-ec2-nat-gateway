@@ -8,8 +8,17 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames             = var.enable_dns_hostnames
   assign_generated_ipv6_cidr_block = true
   tags                             = {
-    Name = "main"
+    Name = var.name
   }
+}
+
+/**
+* VPC Flow Logs
+*/
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "vpc-${var.name}-flow-logs"
+  retention_in_days = 365
+  depends_on        = [aws_s3_bucket.logs]
 }
 
 /**
@@ -18,7 +27,7 @@ resource "aws_vpc" "main" {
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
   tags   = {
-    Name = "${aws_vpc.main.tags.Name}-igw"
+    Name = "${var.name}-igw"
   }
 }
 
@@ -35,7 +44,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch         = true
   depends_on                      = [aws_internet_gateway.igw]
   tags                            = {
-    Name = "public-${substr(var.region, -1, 1)}${element(var.subnet_azs, count.index)}"
+    Name = "${var.name}-public-${substr(var.region, -1, 1)}${element(var.subnet_azs, count.index)}"
   }
 }
 resource "aws_subnet" "private" {
@@ -45,7 +54,7 @@ resource "aws_subnet" "private" {
   availability_zone       = "${var.region}${element(var.subnet_azs, count.index)}"
   map_public_ip_on_launch = false
   tags                    = {
-    Name = "private-${substr(var.region, -1, 1)}${element(var.subnet_azs, count.index)}"
+    Name = "${var.name}-private-${substr(var.region, -1, 1)}${element(var.subnet_azs, count.index)}"
   }
 }
 
@@ -72,10 +81,11 @@ resource "aws_default_route_table" "public_rt" {
     gateway_id      = aws_internet_gateway.igw.id
   }
   tags = {
-    Name = "public"
+    Name = "${var.name}-public"
   }
 }
 resource "aws_route_table" "private_rt" {
+  count  = var.match_nat_gateway_count ? var.public_subnet_count : 1
   vpc_id = aws_vpc.main.id
 
   route {
@@ -88,14 +98,14 @@ resource "aws_route_table" "private_rt" {
   }
   route {
     cidr_block           = "0.0.0.0/0"
-    network_interface_id = aws_instance.nat_gw.primary_network_interface_id
+    network_interface_id = aws_instance.nat_gw[count.index].primary_network_interface_id
   }
   route {
     ipv6_cidr_block      = "::/0"
-    network_interface_id = aws_instance.nat_gw.primary_network_interface_id
+    network_interface_id = aws_instance.nat_gw[count.index].primary_network_interface_id
   }
   tags = {
-    Name = "private"
+    Name = "${var.name}-private-pubVia-${substr(var.region, -1, 1)}${element(var.subnet_azs, count.index)}"
   }
 }
 resource "aws_route_table_association" "public_rt_association" {
@@ -106,7 +116,7 @@ resource "aws_route_table_association" "public_rt_association" {
 resource "aws_route_table_association" "private_rt_association" {
   count          = var.private_subnet_count
   subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private_rt.id
+  route_table_id = aws_route_table.private_rt[var.match_nat_gateway_count ? count.index : 0].id
 }
 
 resource "aws_flow_log" "logs" {
@@ -119,16 +129,3 @@ resource "aws_flow_log" "logs" {
     per_hour_partition = true
   }
 }
-
-# Test EC2 Instance
-#resource "aws_instance" "test_instance" {
-#  ami             = "ami-08a0d1e16fc3f61ea"
-#  instance_type   = "t3.nano"
-#  subnet_id       = aws_subnet.private[0].id
-#  security_groups = [aws_security_group.ssh.id]
-#  key_name        = var.nat_key_name
-#
-#  tags = {
-#    Name = "Test Instance"
-#  }
-#}

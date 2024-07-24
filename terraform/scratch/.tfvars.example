@@ -1,7 +1,12 @@
 region="us-east-1"
+// Although main is used here, it is suggested the vpc name matches your environment; dev, prod, qa
+name="main"
 sg_ssh_admin_name=
 sg_ssh_admin_ipv4=
 nat_key_name=
-sg_ssh_ec2_connect_ips=["18.206.107.24/29"]
+sg_ssh_ec2_connect_ips=
+nacl_ipv4_allow_list=
 nat_gateway_arch="arm64"
 retain_log_bucket=true
+encrypt_at_rest=true
+match_nat_gateway_count=false

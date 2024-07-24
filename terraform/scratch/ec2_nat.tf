@@ -2,18 +2,19 @@
 * Elastic IP for NAT Gateway
 */
 resource "aws_eip" "nat_ip" {
-  tags = {
-    Name = "NAT Gateway EIP"
+  count  = var.match_nat_gateway_count ? var.public_subnet_count : 1
+  domain = "vpc"
+  tags   = {
+    Name = "NAT Gateway EIP - ${count.index + 1}"
   }
-  # Minimize the time the EIP will be unused
-  depends_on = [aws_subnet.public[0]]
 }
 resource "aws_eip_association" "nat_eip_assoc" {
-  instance_id   = aws_instance.nat_gw.id
-  allocation_id = aws_eip.nat_ip.id
+  count         = var.match_nat_gateway_count ? var.public_subnet_count : 1
+  instance_id   = aws_instance.nat_gw[count.index].id
+  allocation_id = aws_eip.nat_ip[count.index].id
 }
 output "nat_ip" {
-  value = aws_eip.nat_ip.public_ip
+  value = aws_eip.nat_ip[*].public_ip
 }
 
 /**
@@ -33,29 +34,42 @@ data "aws_ami" "nat" {
   }
 }
 resource "aws_instance" "nat_gw" {
+  count         = var.match_nat_gateway_count ? var.public_subnet_count : 1
   ami           = data.aws_ami.nat.id
   instance_type = "t4g.nano"
   hibernation   = false
   key_name      = var.nat_key_name
   network_interface {
-    network_interface_id = aws_network_interface.nat_gw.id
+    network_interface_id = aws_network_interface.nat_gw[count.index].id
     device_index         = 0
   }
-  tags = {
-    Name = "NAT Gateway"
+  root_block_device {
+    delete_on_termination = true
+    volume_type           = "gp3"
+    volume_size           = 8
+    throughput            = 125
+    iops                  = 3000
+    encrypted             = var.encrypt_at_rest
+    kms_key_id            = var.encrypt_at_rest ? aws_kms_key.default[0].arn : ""
   }
-   lifecycle {
-     ignore_changes = [ami]
-   }
+  tags = {
+    Name = "NAT ${aws_vpc.main.tags.Name} ${substr(aws_subnet.public[count.index].availability_zone, -2, 2)}"
+  }
+  lifecycle {
+    ignore_changes = [ami]
+  }
 }
 resource "aws_network_interface" "nat_gw" {
-  subnet_id       = aws_subnet.public[0].id
+  count           = var.match_nat_gateway_count ? var.public_subnet_count : 1
+  subnet_id       = aws_subnet.public[count.index].id
   security_groups = [
     aws_security_group.nat.id,
     aws_security_group.ssh.id
   ]
-
   source_dest_check = false
+  tags = {
+    Name = "NAT ${aws_vpc.main.tags.Name} ${substr(aws_subnet.public[count.index].availability_zone, -2, 2)}"
+  }
 }
 
 /**

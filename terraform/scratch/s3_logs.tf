@@ -1,10 +1,10 @@
 resource "aws_s3_bucket" "logs" {
-  bucket        = "logs-${local.account_id}"
+  bucket        = "logs-${var.name}-${local.account_id}"
   force_destroy = !var.retain_log_bucket
 
   tags = {
     application = "support"
-    stage       = "dev"
+    stage       = var.env
     owner       = "networking"
   }
 }

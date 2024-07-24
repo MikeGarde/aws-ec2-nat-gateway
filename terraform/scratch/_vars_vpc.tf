@@ -31,11 +31,6 @@ variable "enable_dns_hostnames" {
   description = "Enable DNS hostnames"
   default     = true
 }
-variable "domain" {
-  type        = string
-  description = "Set the domain of eip"
-  default     = ""
-}
 
 // Service Endpoints
 variable "create_s3_endpoint" {
@@ -77,6 +72,11 @@ variable "public_subnet_count" {
   type        = number
   description = "Number of public subnets"
   default     = 3
+}
+variable "match_nat_gateway_count" {
+  type        = bool
+  description = "Match the number of EC2 NAT Gateways to the number of public subnets"
+  default     = false
 }
 variable "public_subnet_cidr_blocks" {
   type        = list(string)
@@ -121,6 +121,7 @@ variable "sg_ssh_ec2_connect_ips" {
   description = "List of IPs to allow SSH access via EC2 Connect"
   default     = [""]
 }
+// Allowances
 variable "sg_ssh_admin_name" {
   type        = string
   description = "Your name"
@@ -136,10 +137,28 @@ variable "enable_ec2_connect" {
   description = "Enable EC2 Connect"
   default     = true
 }
+variable "nacl_ipv4_allow_list" {
+  type        = list(string)
+  description = "List of CIDR blocks to allow admin inbound traffic"
+  default     = ["0.0.0.0/0"]
+}
 
 // Logs
 variable "retain_log_bucket" {
   type        = bool
   description = "Retain S3 Bucket"
   default     = true
+}
+
+variable "encrypt_at_rest" {
+  type        = bool
+  description = "Encrypt at rest"
+  default     = true
+}
+
+// Test Instance
+variable "launch_test_instance" {
+  type        = bool
+  description = "Launch test instance"
+  default     = false
 }

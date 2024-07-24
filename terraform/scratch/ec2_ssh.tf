@@ -20,6 +20,11 @@ resource "aws_security_group" "ssh" {
   tags = {
     Name = "ssh"
   }
+
+  lifecycle {
+    create_before_destroy = true
+    ignore_changes        = [ingress]
+  }
 }
 resource "aws_vpc_security_group_ingress_rule" "ssh_ingress_ssh_ipv4" {
   security_group_id = aws_security_group.ssh.id
@@ -77,6 +82,6 @@ resource "aws_vpc_security_group_ingress_rule" "ssh_admin_ingress_ssh_ipv4" {
   from_port         = 22
   to_port           = 22
   lifecycle {
-    ignore_changes = [cidr_ipv4]
+    ignore_changes = [description, cidr_ipv4]
   }
 }
