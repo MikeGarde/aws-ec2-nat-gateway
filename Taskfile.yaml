@@ -32,16 +32,21 @@ tasks:
         dotenv region -s $AWS_REGION --file .tfvars --quote
         aws configure get profile-name || echo "root" | dotenv sg_ssh_admin_name --file .tfvars --quote
         curl -s -4 icanhazip.com | dotenv sg_ssh_admin_ipv4 --file .tfvars --quote
+        ADMIN_BLOCK=$(dotenv sg_ssh_admin_ipv4 --file .tfvars | cut -d'.' -f1-2)
+        ADMIN_BLOCK="${ADMIN_BLOCK}.0.0/16"
         aws ec2 describe-key-pairs --query 'sort_by(KeyPairs, &CreateTime)[-1].KeyName' \
           | dotenv nat_key_name --file .tfvars --quote
         
         curl -s https://ip-ranges.amazonaws.com/ip-ranges.json -o ip-ranges.json
         
-        IP=$(jq -r ".prefixes[] | select(.region == \"$AWS_REGION\" and .service == \"EC2_INSTANCE_CONNECT\") \
+        EC2C=$(jq -r ".prefixes[] | select(.region == \"$AWS_REGION\" and .service == \"EC2_INSTANCE_CONNECT\") \
           | .ip_prefix" ip-ranges.json)
-        IPLIST="[\"$IP\"]"
-        echo $IPLIST | dotenv sg_ssh_ec2_connect_ips --file .tfvars
         rm -f ip-ranges.json
+        IPLIST="[\"$EC2C\"]"
+        dotenv sg_ssh_ec2_connect_ips --file .tfvars --set "$IPLIST"
+
+        IPLIST="[\"$EC2C\",\"$ADMIN_BLOCK\"]"
+        dotenv nacl_ipv4_allow_list --file .tfvars --set "$IPLIST"
 
   packer-build:
     desc: Build AMI with Packer
@@ -71,5 +76,19 @@ tasks:
       ACTION: '{{index .MATCH 0}}'
     dir: terraform/scratch
     cmds:
-      - terraform {{.ACTION}} -var-file=".tfvars"
+      - terraform {{.ACTION}} -var-file=".tfvars" {{.CLI_ARGS}}
+  terraform:validate:
+    desc: Validate terraform plan
+    silent: true
+    dir: terraform/scratch
+    cmds:
+      - terraform validate
+  terraform:visual:
+    desc: Visualize using rover
+    silent: false
+    dir: terraform/scratch
+    cmds:
+      - task terraform:plan -- -out plan.out
+      - terraform show -json plan.out > plan.json
+      - docker run --rm -it -p 9000:9000 -v $(pwd)/plan.json:/src/plan.json im2nguyen/rover:latest -planJSONPath=plan.json
 

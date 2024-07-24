@@ -97,9 +97,35 @@ task terraform:destroy
 4. `terraform plan -var-file=".tfvars"`
 5. `terraform apply -var-file=".tfvars"`
 
+## CIS v3 Compliance
+
+- Rule 5  
+  - 5.1 - Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote server administration ports
+  - 5.2 - Ensure no security groups allow ingress from 0.0.0.0/0 to
+    remote server administration ports
+
+CIS v3 rules 5.1 and 5.2 are designed to work in tandem to enhance the security of remote server administration ports. Rule 5.1 acts as a safety net, ensuring that Network ACLs do not allow ingress from `0.0.0.0/0`, while rule 5.2 focuses on the same for Security Groups.
+
+In an ideal scenario, we would avoid making changes to the ACL and instead make necessary adjustments to the Security Groups. If done correctly, the need for rule 5.1 becomes redundant. However, if we were to enforce SSH & RDP using only Security Groups, we would fail an audit.
+
+The rule is explicit in its instruction: do not allow inbound from 0.0.0.0/0. Therefore, we should adhere to the letter of the rule while maintaining safety with Security Groups.
+
+For the Network ACL, we can be more permissive. If admin IPs are static, we should use them. However, if the work environment is remote, we should allow larger blocks that cover the ISP, such as `/11` or `/16`.
+
+On the other hand, the SSH Security Group should be specific, with a single entry per admin with a `/32`. This approach ensures that we comply with the CIS v3 rules while maintaining a secure and flexible network infrastructure.
+
+Goto [ipinfo.com](https://ipinfo.io/) and get your ISPs abuse block. Got a lot of people and you subscribe to ipinfo? Use the following.
+
+```shell
+IP_TOKEN=xxxx
+IP_ADDR=$(curl -s -4 icanhazip.com)
+IP_BLOCK=$(curl -s "https://ipinfo.io/$IP_ADDR/json?token=$IP_TOKEN" | jq -r '.abuse.network')
+echo $IP_BLOCK
+```
+
 ## TODO
 
- - [ ] Terraform plan for 1 EC2 NAT Gateway per AZ
+ - [x] Terraform plan for 1 EC2 NAT Gateway per AZ
  - [ ] CLI/CDK based tool for analyzing current VPC and creating a modification plan
  - [ ] Lambda functions to replace troubled instances and move them between AZ's
  - [ ] [Steampipe](https://steampipe.io/) compliance dashboard
