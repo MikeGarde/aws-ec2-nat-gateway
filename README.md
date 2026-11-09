@@ -60,7 +60,7 @@ You'll need - [Packer](https://www.packer.io/) - [Terraform](https://www.terrafo
 task init
 
 # Or do packer & terraform on their own
-packer init ami/nat-gateway.pkr.hcl
+packer init ami/
 terraform init terraform/scratch/
 ```
 
@@ -68,8 +68,25 @@ terraform init terraform/scratch/
 
 Build the AMI, you'll need an existing VPC to create your initial AMI. Review `packer-build` in `Taskfile.yaml`
 
+Most users only need one architecture. Pick the one that matches the instance type you plan to run; arm64 (`t4g`) is generally the cheaper option.
+
 ```sh
+# arm64 only (recommended)
+task packer-build:arm64
+
+# x86_64 only
+task packer-build:x86
+
+# Both architectures
 task packer-build
+```
+
+Or call Packer directly from the `ami/` directory, passing `-only` with the same `-var` flags the Taskfile uses:
+
+```sh
+packer build -only=nat-gateway.amazon-ebs.arm64 \
+  -var "aws_region=$AWS_REGION" -var "vpc_id=$VPC_ID" -var "subnet_id=$SUBNET_ID" \
+  nat-gateway.pkr.hcl
 ```
 
 ### VPC (terraform)

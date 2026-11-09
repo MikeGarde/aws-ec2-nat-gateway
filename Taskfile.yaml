@@ -11,9 +11,9 @@ tasks:
     cmds:
       - |
         cd ami
-        packer init
+        packer init -upgrade nat-gateway.pkr.hcl
         cd ../terraform/scratch
-        terraform init
+        terraform init -upgrade
 
   check-dotenv:
     internal: true
@@ -55,19 +55,32 @@ tasks:
       - |
         AWS_REGION=$(aws configure get region)
         VPC_ID=$(aws ec2 describe-vpcs --query 'Vpcs[0].VpcId' --output text --region $AWS_REGION)
-        SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=public-*" --query 'Subnets[0].SubnetId' --output text --region $AWS_REGION)
+        SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=*public*" --query 'Subnets[0].SubnetId' --output text --region $AWS_REGION)
         packer build \
           -var "aws_region=$AWS_REGION" \
           -var "vpc_id=$VPC_ID" \
           -var "subnet_id=$SUBNET_ID" \
           {{.PACKER_DEBUG}} \
+          {{.PACKER_ONLY}} \
           nat-gateway.pkr.hcl
+  packer-build:arm64:
+    desc: Build only the arm64 AMI with Packer
+    cmds:
+      - task: packer-build
+        vars:
+          PACKER_ONLY: "-only=nat-gateway.amazon-ebs.arm64"
+  packer-build:x86:
+    desc: Build only the x86_64 AMI with Packer
+    cmds:
+      - task: packer-build
+        vars:
+          PACKER_ONLY: "-only=nat-gateway.amazon-ebs.x86"
   packer-build:debug:
     desc: Build AMI with Packer (Debug Mode)
-    vars:
-      PACKER_DEBUG: "--debug"
-    deps:
-      - packer-build
+    cmds:
+      - task: packer-build
+        vars:
+          PACKER_DEBUG: "--debug"
 
   terraform:*:
     desc: Run Terraform Action [plan | apply | destroy]

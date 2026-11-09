@@ -1,7 +1,7 @@
 packer {
   required_plugins {
     amazon = {
-      version = ">= 1.3.2"
+      version = ">= 1.8.4"
       source  = "github.com/hashicorp/amazon"
     }
   }
@@ -24,15 +24,16 @@ variable "subnet_id" {
 source "amazon-ebs" "x86" {
   ami_name        = "nat-gateway-al2023-${var.our_timestamp}-x86_64"
   ami_description = "NAT Gateway x86_64 - {{timestamp}}"
-  tags            = {
+  tags = {
     application = "support"
     stage       = "dev"
     owner       = "networking"
   }
-  instance_type = "t3.micro"
-  region        = "${var.aws_region}"
-  vpc_id        = "${var.vpc_id}"
-  subnet_id     = "${var.subnet_id}"
+  instance_type               = "t3.micro"
+  region                      = "${var.aws_region}"
+  vpc_id                      = "${var.vpc_id}"
+  subnet_id                   = "${var.subnet_id}"
+  associate_public_ip_address = true
   launch_block_device_mappings {
     device_name           = "/dev/xvda"
     volume_size           = "8"
@@ -57,15 +58,16 @@ source "amazon-ebs" "x86" {
 source "amazon-ebs" "arm64" {
   ami_name        = "nat-gateway-al2023-${var.our_timestamp}-arm64"
   ami_description = "NAT Gateway arm64 - {{timestamp}}"
-  tags            = {
+  tags = {
     application = "support"
     stage       = "dev"
     owner       = "networking"
   }
-  instance_type = "t4g.micro"
-  region        = "${var.aws_region}"
-  vpc_id        = "${var.vpc_id}"
-  subnet_id     = "${var.subnet_id}"
+  instance_type               = "t4g.micro"
+  region                      = "${var.aws_region}"
+  vpc_id                      = "${var.vpc_id}"
+  subnet_id                   = "${var.subnet_id}"
+  associate_public_ip_address = true
   launch_block_device_mappings {
     device_name           = "/dev/xvda"
     volume_size           = "8"
@@ -88,7 +90,7 @@ source "amazon-ebs" "arm64" {
 }
 
 build {
-  name    = "nat-gateway"
+  name = "nat-gateway"
   sources = [
     "source.amazon-ebs.x86",
     "source.amazon-ebs.arm64",
